@@ -28,6 +28,7 @@
 #include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 /* OP-TEE TEE client API (built by optee_client) */
 #include <tee_client_api.h>
@@ -41,6 +42,11 @@
 /* maximum file size */
 #define BUF_SIZE 1024
 
+/*
+argv[1] : option (encryption, decryption)
+argv[2] : filename
+argv[3] : algorithm
+*/
 int main(int argc, char* argv[])
 {
 	TEEC_Result res;
@@ -92,32 +98,52 @@ int main(int argc, char* argv[])
 			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_ENC_VALUE, &op,
 				 	&err_origin);
 			printf("encrypted key : %d\n", op.params[1].value.a);
-			/* integer key to char */
-			char char_key[2];
-			sprintf(char_key, "%d", op.params[1].value.a);
-			printf("key attached : %s\n", char_key);
-			/* save encrypted file and key */
+			/* save encrypted file */
 			int fd;
 			char *filename = strcat(argv[2], "_enc");
 			fd = open(filename, O_WRONLY | O_CREAT | O_EXCL);
-			if(fd > 0)
-				{
-					strcat((char *)op.params[0].tmpref.buffer, "|"); // attach encrypted key to buffer
-					strcat((char *)op.params[0].tmpref.buffer, char_key);
-					int len = sizeof(op.params[0].tmpref.buffer);
-					write(fd, op.params[0].tmpref.buffer, len);
-					close(fd);
-				}
-			else
-				{
-					close(fd);
-					printf("file write failed\n");
-				}
+			int len = sizeof(op.params[0].tmpref.buffer);
+			write(fd, op.params[0].tmpref.buffer, len);
+			close(fd);
+			/* integer key to char */
+			char char_key[2];
+			sprintf(char_key, "%d", op.params[1].value.a);
+			printf("char key : %s\n", char_key);
+			/* save encrypted key */
+			int fd_key;
+			char *filename_key = strcat(argv[2], "_key");
+			fd_key = open(filename_key, O_WRONLY | O_CREAT | O_EXCL);
+			int len_key = sizeof(char_key);
+			write(fd_key, char_key, len_key);
+			close(fd_key);						
 		}
 	else if(strcmp(argv[1], "-d") == 0)
 		{
+			/* read key file */
+			char key[3];
+			int fd_enckey;
+			fd_enckey = open(argv[3], O_RDONLY);
+			if(fd_enckey > 0)
+				{
+					read(fd_enckey, key, 3);
+					close(fd_enckey);
+				}
+			else
+				{
+					printf("key read failed\n");
+					return 0;
+				}
+			op.params[1].value.a = atoi(key);
+			printf("op params[1] : %d\n", op.params[1].value.a);
+			printf("char key : %s\n", key);
 			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_DEC_VALUE, &op, &err_origin);
-			
+			/* save decrypted file */
+			int fd_dec;
+			char * filename_dec = strcat(argv[2], "_dec");
+			fd_dec = open(filename_dec, O_WRONLY | O_CREAT | O_EXCL);
+			int len_dec = sizeof(op.params[0].tmpref.buffer);
+			write(fd_dec, op.params[0].tmpref.buffer, len_dec);
+			close(fd_dec);
 		}
 	else
 		{

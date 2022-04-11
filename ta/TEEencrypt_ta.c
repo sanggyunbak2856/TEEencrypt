@@ -142,34 +142,37 @@ static TEE_Result enc_value(uint32_t param_types, // encrypt
 static TEE_Result dec_value(uint32_t param_types, // decrypt
 	TEE_Param params[4])
 {
-	char * ciphertext = strtok((char *)params[0].memref.buffer, "|");
-	char * enc_key = strtok((char *)params[0].memref.buffer, "|");
-	int ciphertext_len = strlen (ciphertext);
+	char * in = (char *)params[0].memref.buffer;
+	int in_len = strlen (params[0].memref.buffer);
 	char decrypted [64]={0,};
+	
+	/* decryption of rand key */
+	int enc_key = params[1].value.a;
+	int dec_key = enc_key - root_key; // decrypted rand key
 
 	DMSG("========================Decryption========================\n");
-	DMSG ("Ciphertext :  %s", ciphertext);
-	DMSG ("enc key :  %s", enc_key);
-	memcpy(decrypted, ciphertext, ciphertext_len);
+	DMSG ("Ciphertext :  %s", in);
+	DMSG ("key :  %d", params[1].value.a);
+	memcpy(decrypted, in, in_len);
 
-	for(int i=0; i<ciphertext_len;i++){
+	for(int i=0; i<in_len;i++){
 		if(decrypted[i]>='a' && decrypted[i] <='z'){
 			decrypted[i] -= 'a';
-			decrypted[i] -= 1;
+			decrypted[i] -= dec_key;
 			decrypted[i] += 26;
 			decrypted[i] = decrypted[i] % 26;
 			decrypted[i] += 'a';
 		}
 		else if (decrypted[i] >= 'A' && decrypted[i] <= 'Z') {
 			decrypted[i] -= 'A';
-			decrypted[i] -= 1;
+			decrypted[i] -= dec_key;
 			decrypted[i] += 26;
 			decrypted[i] = decrypted[i] % 26;
 			decrypted[i] += 'A';
 		}
 	}
 	DMSG ("Plaintext :  %s", decrypted);
-	memcpy(ciphertext, decrypted, ciphertext_len);
+	memcpy(params[0].memref.buffer, decrypted, in_len); // buffer
 
 	return TEE_SUCCESS;
 }
