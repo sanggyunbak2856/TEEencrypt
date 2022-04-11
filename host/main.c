@@ -34,8 +34,14 @@
 
 /* To the the UUID (found the the TA's h-file(s)) */
 #include <TEEencrypt_ta.h>
+/* file open and close */
+#include <fcntl.h>
+#include <unistd.h>
 
-int main(void)
+/* maximum file size */
+#define BUF_SIZE 1024
+
+int main(int argc, char* argv[])
 {
 	TEEC_Result res;
 	TEEC_Context ctx;
@@ -46,63 +52,80 @@ int main(void)
 
 	/* Initialize a context connecting us to the TEE */
 	res = TEEC_InitializeContext(NULL, &ctx);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_InitializeContext failed with code 0x%x", res);
-
-	/*
-	 * Open a session to the "hello world" TA, the TA will print "hello
-	 * world!" in the log when the session is created.
-	 */
+	
 	res = TEEC_OpenSession(&ctx, &sess, &uuid,
 			       TEEC_LOGIN_PUBLIC, NULL, NULL, &err_origin);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_Opensession failed with code 0x%x origin 0x%x",
-			res, err_origin);
+	
+	if(argc < 3)
+		{
+			printf("not enough args\n");
+			TEEC_CloseSession(&sess);
+			TEEC_FinalizeContext(&ctx);
+			return 0;
+		}
+	
+	/* Open file and read file if file exist */
+	char buf[BUF_SIZE];
+	int fd;
+	fd = open(argv[2], O_RDONLY); // file open, read only
+	if(fd > 0) // if file exist
+		{
+			read(fd, buf, BUF_SIZE); // file content to buffer
+			printf("%s\n", buf);
+			close(fd);
+		}
+	else
+		{
+			printf("file open failed\n");
+			return 0; // process terminated
+		}
+	// buffer content copied to op.params[0]
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_MEMREF_TEMP_INOUT, TEEC_VALUE_INOUT, TEEC_NONE, TEEC_NONE);
+	op.params[0].tmpref.buffer = buf;
+	op.params[0].tmpref.size = BUF_SIZE;
+	op.params[1].value.a = 0; // encrypted random key
 
-	/*
-	 * Execute a function in the TA by invoking it, in this case
-	 * we're incrementing a number.
-	 *
-	 * The value of command ID part and how the parameters are
-	 * interpreted is part of the interface provided by the TA.
-	 */
+	memcpy(op.params[0].tmpref.buffer, buf, BUF_SIZE);
 
-	/* Clear the TEEC_Operation struct */
-	memset(&op, 0, sizeof(op));
+	if(strcmp(argv[1], "-e") == 0) // check argv[1]
+		{
+			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_ENC_VALUE, &op,
+				 	&err_origin);
+			printf("encrypted key : %d\n", op.params[1].value.a);
+			/* integer key to char */
+			char char_key[2];
+			sprintf(char_key, "%d", op.params[1].value.a);
+			printf("key attached : %s\n", char_key);
+			/* save encrypted file and key */
+			int fd;
+			char *filename = strcat(argv[2], "_enc");
+			fd = open(filename, O_WRONLY | O_CREAT | O_EXCL);
+			if(fd > 0)
+				{
+					strcat((char *)op.params[0].tmpref.buffer, "|"); // attach encrypted key to buffer
+					strcat((char *)op.params[0].tmpref.buffer, char_key);
+					int len = sizeof(op.params[0].tmpref.buffer);
+					write(fd, op.params[0].tmpref.buffer, len);
+					close(fd);
+				}
+			else
+				{
+					close(fd);
+					printf("file write failed\n");
+				}
+		}
+	else if(strcmp(argv[1], "-d") == 0)
+		{
+			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_DEC_VALUE, &op, &err_origin);
+			
+		}
+	else
+		{
+			printf("wrong arg\n");
+			return 0;
+		}
 
-	/*
-	 * Prepare the argument. Pass a value in the first parameter,
-	 * the remaining three parameters are unused.
-	 */
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
-					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = 42;
-
-	/*
-	 * TA_HELLO_WORLD_CMD_INC_VALUE is the actual function in the TA to be
-	 * called.
-	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
-	res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_INC_VALUE, &op,
-				 &err_origin);
-	res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_DEC_VALUE, &op,
-				 &err_origin);
-	res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_ADD1, &op,
-				 &err_origin);
-	res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_ADD2, &op,
-				 &err_origin);
-	if (res != TEEC_SUCCESS)
-		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
-			res, err_origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
-
-	/*
-	 * We're done with the TA, close the session and
-	 * destroy the context.
-	 *
-	 * The TA will print "Goodbye!" in the log when the
-	 * session is closed.
-	 */
+	printf("res : %s\n", (char *)op.params[0].tmpref.buffer);
 
 	TEEC_CloseSession(&sess);
 

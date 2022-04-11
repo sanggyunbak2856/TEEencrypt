@@ -37,9 +37,8 @@
 		{ 0xbe, 0xb5, 0x7e, 0xb6, 0x7b, 0xae, 0xd6, 0x09} }
 
 /* The function IDs implemented in this TA */
-#define TA_TEEencrypt_CMD_INC_VALUE		0
+#define TA_TEEencrypt_CMD_ENC_VALUE		0
 #define TA_TEEencrypt_CMD_DEC_VALUE		1
-#define TA_TEEencrypt_CMD_ADD1			2
-#define TA_TEEencrypt_CMD_ADD2			3
+#define TA_TEEencrypt_CMD_RANDOMKEY_GET		2
 
 #endif /*TA_HELLO_WORLD_H*/
