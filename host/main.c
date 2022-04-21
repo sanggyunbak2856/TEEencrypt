@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
 			int fd;
 			char *filename = strcat(argv[2], "_enc");
 			fd = open(filename, O_WRONLY | O_CREAT | O_EXCL);
-			int len = sizeof(op.params[0].tmpref.buffer);
+			int len = strlen(op.params[0].tmpref.buffer);
 			write(fd, op.params[0].tmpref.buffer, len);
 			close(fd);
 			/* integer key to char */
@@ -113,7 +113,7 @@ int main(int argc, char* argv[])
 			int fd_key;
 			char *filename_key = strcat(argv[2], "_key");
 			fd_key = open(filename_key, O_WRONLY | O_CREAT | O_EXCL);
-			int len_key = sizeof(char_key);
+			int len_key = strlen(char_key);
 			write(fd_key, char_key, len_key);
 			close(fd_key);						
 		}
@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
 			int fd_dec;
 			char * filename_dec = strcat(argv[2], "_dec");
 			fd_dec = open(filename_dec, O_WRONLY | O_CREAT | O_EXCL);
-			int len_dec = sizeof(op.params[0].tmpref.buffer);
+			int len_dec = strlen(op.params[0].tmpref.buffer);
 			write(fd_dec, op.params[0].tmpref.buffer, len_dec);
 			close(fd_dec);
 		}
