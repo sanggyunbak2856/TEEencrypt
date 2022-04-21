@@ -97,7 +97,6 @@ int main(int argc, char* argv[])
 		{
 			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_ENC_VALUE, &op,
 				 	&err_origin);
-			printf("encrypted key : %d\n", op.params[1].value.a);
 			/* save encrypted file */
 			int fd;
 			char *filename = strcat(argv[2], "_enc");
@@ -108,7 +107,6 @@ int main(int argc, char* argv[])
 			/* integer key to char */
 			char char_key[2];
 			sprintf(char_key, "%d", op.params[1].value.a);
-			printf("char key : %s\n", char_key);
 			/* save encrypted key */
 			int fd_key;
 			char *filename_key = strcat(argv[2], "_key");
@@ -134,8 +132,6 @@ int main(int argc, char* argv[])
 					return 0;
 				}
 			op.params[1].value.a = atoi(key);
-			printf("op params[1] : %d\n", op.params[1].value.a);
-			printf("char key : %s\n", key);
 			res = TEEC_InvokeCommand(&sess, TA_TEEencrypt_CMD_DEC_VALUE, &op, &err_origin);
 			/* save decrypted file */
 			int fd_dec;
@@ -150,8 +146,6 @@ int main(int argc, char* argv[])
 			printf("wrong arg\n");
 			return 0;
 		}
-
-	printf("res : %s\n", (char *)op.params[0].tmpref.buffer);
 
 	TEEC_CloseSession(&sess);
 
