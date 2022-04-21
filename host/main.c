@@ -77,7 +77,6 @@ int main(int argc, char* argv[])
 	if(fd > 0) // if file exist
 		{
 			read(fd, buf, BUF_SIZE); // file content to buffer
-			printf("%s\n", buf);
 			close(fd);
 		}
 	else
